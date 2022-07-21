@@ -5,6 +5,7 @@ import numpy as np
 from tqdm.auto import tqdm
 from ldm.modules.diffusionmodules.util import make_ddim_sampling_parameters, make_ddim_timesteps, noise_like
 from einops import rearrange
+from src.generators.k_diffusion.k_diffusion.external import CompVisDenoiser
 
 class DDIMSampler(object):
     def __init__(self, model, schedule="linear", **kwargs):
@@ -12,6 +13,7 @@ class DDIMSampler(object):
         self.model = model
         self.ddpm_num_timesteps = model.num_timesteps
         self.schedule = schedule
+        self.denoiser = CompVisDenoiser(self.model)
 
     def register_buffer(self, name, attr):
         if type(attr) == torch.Tensor:
@@ -207,6 +209,7 @@ class DDIMSampler(object):
                                 c[k]])
             else:
                 c_in = torch.cat([unconditional_conditioning, c])
+            
             e_t_uncond, e_t = self.model.apply_model(x_in, t_in, c_in).chunk(2)
             e_t = e_t_uncond + unconditional_guidance_scale * (e_t - e_t_uncond)
 
@@ -226,7 +229,7 @@ class DDIMSampler(object):
         sqrt_one_minus_at = torch.full((b, 1, 1, 1), sqrt_one_minus_alphas[index],device=device)
         
         # current prediction for x_0
-        pred_x0 = (x - sqrt_one_minus_at * e_t) / a_t.sqrt()
+        pred_x0 = self.denoiser(x, sigmas[index], cond = c)#(x - sqrt_one_minus_at * e_t) / a_t.sqrt()
         if quantize_denoised:
             pred_x0, _, *_ = self.model.first_stage_model.quantize(pred_x0)
         # direction pointing to x_t
