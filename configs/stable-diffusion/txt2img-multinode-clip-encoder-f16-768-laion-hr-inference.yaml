@@ -13,8 +13,8 @@ model:
     channels: 16
     cond_stage_trainable: false
     conditioning_key: crossattn
-    monitor: val/loss_simple_ema
     scale_factor: 0.22765929   # magic number
+    use_ema: False
 
     scheduler_config: # 10000 warmup steps
       target: ldm.lr_scheduler.LambdaLinearScheduler

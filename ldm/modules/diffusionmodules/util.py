@@ -60,19 +60,22 @@ def make_ddim_timesteps(ddim_discr_method, num_ddim_timesteps, num_ddpm_timestep
     return steps_out
 
 
-def make_ddim_sampling_parameters(alphacums, ddim_timesteps, eta, verbose=True):
+def make_ddim_sampling_parameters(alphacums, ddim_timesteps, eta_start=0, eta_end=0, verbose=True, eta = None):
     # select alphas for computing the variance schedule
     alphas = alphacums[ddim_timesteps]
     alphas_prev = np.asarray([alphacums[0]] + alphacums[ddim_timesteps[:-1]].tolist())
 
     # according the the formula provided in https://arxiv.org/abs/2010.02502
-    sigmas = eta * np.sqrt((1 - alphas_prev) / (1 - alphas) * (1 - alphas / alphas_prev))
+    if eta == 0 and eta_start == 0 and eta_end == 0:
+        sigmas = eta * np.sqrt((1 - alphas_prev) / (1 - alphas) * (1 - alphas / alphas_prev))
+    else:
+        sigmas = torch.linspace(eta_end,eta_start,len(alphas)) * np.sqrt((1 - alphas_prev) / (1 - alphas) * (1 - alphas / alphas_prev))
     if verbose:
         print(f'Selected alphas for ddim sampler: a_t: {alphas}; a_(t-1): {alphas_prev}')
         print(f'For the chosen value of eta, which is {eta}, '
               f'this results in the following sigma_t schedule for ddim sampler {sigmas}')
     return sigmas, alphas, alphas_prev
-
+    
 
 def betas_for_alpha_bar(num_diffusion_timesteps, alpha_bar, max_beta=0.999):
     """
