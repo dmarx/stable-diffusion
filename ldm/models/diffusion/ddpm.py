@@ -304,7 +304,8 @@ class DDPM(pl.LightningModule):
         b = shape[0]
         img = torch.randn(shape, device=device)
         intermediates = [img]
-        for i in tqdm(reversed(range(0, self.num_timesteps)), desc='Sampling t', total=self.num_timesteps):
+        #for i in tqdm(reversed(range(0, self.num_timesteps)), desc='Sampling t', total=self.num_timesteps):
+        for i in reversed(range(0, self.num_timesteps)):
             img = self.p_sample(img, torch.full((b,), i, device=device, dtype=torch.long),
                                 clip_denoised=self.clip_denoised)
             if i % self.log_every_t == 0 or i == self.num_timesteps - 1:
@@ -373,7 +374,14 @@ class DDPM(pl.LightningModule):
         # b, c, h, w, device, img_size, = *x.shape, x.device, self.image_size
         # assert h == img_size and w == img_size, f'height and width of image must be {img_size}'
         t = torch.randint(0, self.num_timesteps, (x.shape[0],), device=self.device).long()
-        return self.p_losses(x, t, *args, **kwargs)
+        loss, loss_dict = self.p_losses(x, t, *args, **kwargs)
+        if self.hook_after_forward:
+            for f in self.hook_after_forward:
+                #print(f"custom loss detected: {f}")
+                #loss += f(x, t, *args, **kwargs)
+                addl_loss = f(x, t, *args, **kwargs)
+                loss = loss + addl_loss
+        return  loss, loss_dict
 
     def get_input(self, batch, k):
         x = batch[k]
